@@ -1,0 +1,23 @@
+---
+title: "data exploration"
+author: "Ruoyuan Qian"
+date: "12/3/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) ## Data Manipulaion
+library(dplyr)
+library(arsenal)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r}
+lawsuit = 
+read_csv("data/Lawsuit.csv") %>% 
+   janitor::clean_names()
+
+```
+
