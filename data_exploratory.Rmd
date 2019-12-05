@@ -105,6 +105,10 @@ lawsuit_log_94 =
 lawsuit_log %>% 
   select(-log_sal95,-id)
 
+lawsuit_log_95 =
+lawsuit_log %>% 
+  select(-log_sal94,-id)
+
 mul.fit <- lm(log_sal94 ~ . + 
               gender*rank + gender*clin + gender*cert +
               gender*prate + gender*rank + gender*dept
@@ -121,4 +125,59 @@ summary(mul.fit)
 
 # 
 ```
+
+# Confounders for 94
+
+```{r}
+con = lm(log_sal94 ~ gender, data = lawsuit_log_94) %>% summary()
+con_1 = lm(log_sal94 ~ gender + dept, data = lawsuit_log_94) %>% summary()
+con_2 = lm(log_sal94 ~ gender + clin, data = lawsuit_log_94) %>% summary()
+con_3 = lm(log_sal94 ~ gender + cert, data = lawsuit_log_94) %>% summary()
+con_4 = lm(log_sal94 ~ gender + prate, data = lawsuit_log_94) %>% summary()
+con_5 = lm(log_sal94 ~ gender + exper, data = lawsuit_log_94) %>% summary()
+con_6 = lm(log_sal94 ~ gender + rank, data = lawsuit_log_94) %>% summary()
+
+con_tab_94 = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab_94 %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+con_tab_94
+(0.2251-0.2024)/0.2251
+```
+
+
+
+# Confounder 95
+
+```{r}
+con = lm(log_sal95 ~ gender, data = lawsuit_log_95) %>% summary()
+con_1 = lm(log_sal95 ~ gender + dept, data = lawsuit_log_95) %>% summary()
+con_2 = lm(log_sal95 ~ gender + clin, data = lawsuit_log_95) %>% summary()
+con_3 = lm(log_sal95 ~ gender + cert, data = lawsuit_log_95) %>% summary()
+con_4 = lm(log_sal95 ~ gender + prate, data = lawsuit_log_95) %>% summary()
+con_5 = lm(log_sal95 ~ gender + exper, data = lawsuit_log_95) %>% summary()
+con_6 = lm(log_sal95 ~ gender + rank, data = lawsuit_log_95) %>% summary()
+
+con_tab_95 = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab_95 %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+
+
+```
+
+
+
+
+
+
+
+
+
 
