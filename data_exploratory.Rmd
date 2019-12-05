@@ -97,28 +97,123 @@ gg_94 + gg_95
 
 # 画分层图
 ```{r}
-lawsuit_log_94 = 
+#lawsuit_log_94 %>% 
+#  ggplot(aes(x = ))
+#
+#heart_fill %>% 
+#ggplot(aes(x = e_rvisits, y = log_totalcost,color = comp_bin)) + 
+#  geom_point() + 
+#  geom_smooth(method = 'lm', formula = y ~ x)+
+#    labs(x = "ER visits",
+#         y = "log(total cost+1)")
 ```
-
+# 94 salary
 ```{r}
 lawsuit_log_94 =
 lawsuit_log %>% 
   select(-log_sal95,-id)
 
-mul.fit <- lm(log_sal94 ~ . + 
+mul.fit <- lm(log_sal94 ~ .,lawsuit_log_94)
+summary(mul.fit)
+
+# let gender be a stratified factor
+mul.fit_all_gender <- lm(log_sal94 ~ . + 
               gender*rank + gender*clin + gender*cert +
               gender*prate + gender*rank + gender*dept
               ,lawsuit_log_94)
-summary(mul.fit)
-
-# let gender be a stratified 
-mul.fit <- lm(log_sal94 ~ . + 
-              gender*rank + gender*clin + gender*cert +
-              gender*prate + gender*rank + gender*dept
-              ,lawsuit_log_94)
-summary(mul.fit)
+summary(mul.fit_all_gender)
 
 
-# 
+# only gender*rank is significant
+mul.fit_fixed_gender <- lm(log_sal94 ~ . + gender*rank, lawsuit_log_94)
+summary(mul.fit_fixed_gender)
+
+# remove non-significant variable: prate
+# test model with and without prate
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+
+# ANOVA
+# P>0.05
+# choose small model wothout prate
+anova(mul.fit_no_prate,mul.fit_fixed_gender)
+
+# Final stratified model
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
 ```
+
+stepwise 
+```{r}
+step(mul.fit_no_prate,direction='backward')
+
+mul.fit_fixed_gender <- lm(log_sal94 ~ . + gender*rank, lawsuit_log_94)
+summary(mul.fit_fixed_gender)
+
+step(mul.fit_fixed_gender,direction='backward')
+
+
+# whole medel stepwise
+model_all = lm(log_sal94 ~ . + 
+              gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_94)
+step(model_all,direction='backward')
+
+```
+
+```{r}
+
+```
+
+
+
+
+```{r}
+model1 = lm(formula = log_sal94 ~ dept + clin + cert + exper + 
+    rank + gender:rank + gender, data = lawsuit_log_94)
+
+model2 = lm(formula = log_sal94 ~ dept + clin + cert + exper + 
+    rank , data = lawsuit_log_94)
+
+anova(model2, model1)
+
+```
+
+# 95 salary
+```{r}
+lawsuit_log_95 =
+lawsuit_log %>% 
+  select(-log_sal94,-id)
+
+mul.fit <- lm(log_sal95 ~ .,lawsuit_log_95)
+summary(mul.fit)
+
+# let gender be a stratified factor
+mul.fit_all_gender <- lm(log_sal95 ~ . + 
+              gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_95)
+summary(mul.fit_all_gender)
+
+
+# only gender*rank is significant
+mul.fit_fixed_gender <- lm(log_sal95 ~ . + gender*rank, lawsuit_log_95)
+summary(mul.fit_fixed_gender)
+
+# remove non-significant variable: prate
+# test model with and without prate
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+
+# ANOVA
+# P>0.05
+# choose small model wothout prate
+anova(mul.fit_no_prate,mul.fit_fixed_gender)
+
+# Final stratified model
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+```
+
 
