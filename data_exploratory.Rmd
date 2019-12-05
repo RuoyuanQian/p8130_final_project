@@ -95,7 +95,30 @@ gg_94 + gg_95
   
 ```
 
+# 画分层图
 ```{r}
+lawsuit_log_94 = 
+```
 
+```{r}
+lawsuit_log_94 =
+lawsuit_log %>% 
+  select(-log_sal95,-id)
+
+mul.fit <- lm(log_sal94 ~ . + 
+              gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_94)
+summary(mul.fit)
+
+# let gender be a stratified 
+mul.fit <- lm(log_sal94 ~ . + 
+              gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_94)
+summary(mul.fit)
+
+
+# 
 ```
 
