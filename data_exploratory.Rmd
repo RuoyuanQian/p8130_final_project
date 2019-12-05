@@ -1,6 +1,6 @@
 ---
 title: "data exploration"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -15,7 +15,87 @@ library(patchwork)
 ```{r}
 lawsuit = 
 read_csv("data/Lawsuit.csv") %>% 
-   janitor::clean_names()
+   janitor::clean_names() %>% 
+  mutate(dept = factor(dept,levels = c(1:6),
+                       labels =
+                    c("Biochemistry","Physiology","Genetics",
+                      "Pediatrics","Medicine","Surgery")),
+         gender = factor(gender,levels = c(0:1),
+                       labels =
+                    c("Female","Male")),
+         clin = factor(clin,levels = c(0:1),
+                       labels =
+                    c("Research","Clinical")),
+         cert = factor(cert,levels = c(0:1),
+                       labels =
+                    c("Not certified","Broad certified")),
+         rank = factor(rank,levels = c(1:3),
+                       labels =
+                    c("Assistant","Associate","Full professor")))
+
+```
+
+Summarize all variables by gender
+```{r}
+ sum_data  <-  arsenal::tableby( gender ~ dept + clin + cert + 
+                                 prate + exper + rank + sal94	+
+                                 sal95, 
+                                data  = lawsuit,
+                                test  = FALSE, 
+                                total = FALSE,
+                                numeric.stats =
+                                  c("meansd","medianq1q3","range"))
+summ = summary(sum_data,text = TRUE)
+summ
+```
+
+Distributions
+```{r}
+gg_94 = 
+lawsuit %>% 
+ ggplot(aes(sal94,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "sal94")
+
+gg_95 = 
+lawsuit %>% 
+ ggplot(aes(sal95,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "sal95")
+
+gg_94 + gg_95
+```
+
+Possible transformation
+
+```{r}
+lawsuit_log = 
+lawsuit %>% 
+  mutate(log_sal94 = log(sal94),
+         log_sal95 = log(sal95)) %>% 
+  select(-sal94,-sal95)
+
+gg_94 = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal94,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log_sal94")
+
+gg_95 = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal95,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log_sal95")
+
+gg_94 + gg_95
+  
+```
+
+```{r}
 
 ```
 
