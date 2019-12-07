@@ -113,19 +113,19 @@ lawsuit_log_94 =
 lawsuit_log %>% 
   select(-log_sal95,-id)
 
-<<<<<<< HEAD
+
 mul.fit <- lm(log_sal94 ~ .,lawsuit_log_94)
 summary(mul.fit)
 
 # let gender be a stratified factor
 mul.fit_all_gender <- lm(log_sal94 ~ . + 
-=======
+
 lawsuit_log_95 =
 lawsuit_log %>% 
   select(-log_sal94,-id)
 
 mul.fit <- lm(log_sal94 ~ . + 
->>>>>>> e4078241bd0c5c5484df48005da8e3a4fdbabf06
+
               gender*rank + gender*clin + gender*cert +
               gender*prate + gender*rank + gender*dept
               ,lawsuit_log_94)
@@ -170,7 +170,41 @@ step(model_all,direction='backward')
 
 ```
 
+
+# Foward
+
 ```{r}
+library(broom)
+
+foward_elimation = function(x, y){
+  min_value = tidy(lm(y ~ x[[1]], data = x))$p.value[2]
+  min_index = 1
+  for(i in 2:length(x)-1){
+    if(tidy(lm(y ~ x[[i]], data = x))$p.value[2]>min_value){
+      min_value = min_value
+      min_index = min_index
+    }else{
+      min_value = tidy(lm(y ~ x[[i]], data = x))$p.value[2]
+      min_index = i
+    }
+    
+    
+    
+  }
+  
+  
+  
+}
+
+
+
+tidy(lm(y ~ x[[i]], data = x))$p.value[2] > tidy(lm(y ~ x[[i-1]], data = x))$p.value[2]
+
+tidy(lm(log_sal94 ~ lawsuit_log_94[[1]], data = lawsuit_log_94))
+
+
+names(lawsuit_log_94)[1]
+
 
 ```
 
@@ -224,8 +258,7 @@ mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
 summary(mul.fit_no_prate)
 ```
 
-<<<<<<< HEAD
-=======
+
 # Confounders for 94
 
 ```{r}
@@ -274,11 +307,12 @@ con_tab_95 %>% mutate(
 
 
 
+# Fowared elimination
 
 
 
 
 
 
->>>>>>> e4078241bd0c5c5484df48005da8e3a4fdbabf06
+
 
