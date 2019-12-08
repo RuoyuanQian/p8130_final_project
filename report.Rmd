@@ -1,0 +1,325 @@
+---
+title: "report"
+author: "Xinyu Shen xs2384"
+date: "2019/12/7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) ## Data Manipulaion
+library(dplyr)
+library(arsenal)
+library(ggplot2)
+library(patchwork)
+library(MASS)
+library(HH)
+```
+
+```{r}
+lawsuit = 
+read_csv("data/Lawsuit.csv") %>% 
+   janitor::clean_names() %>% 
+  mutate(dept = factor(dept,levels = c(1:6),
+                       labels =
+                    c("Biochemistry","Physiology","Genetics",
+                      "Pediatrics","Medicine","Surgery")),
+         gender = factor(gender,levels = c(0:1),
+                       labels =
+                    c("Female","Male")),
+         clin = factor(clin,levels = c(0:1),
+                       labels =
+                    c("Research","Clinical")),
+         cert = factor(cert,levels = c(0:1),
+                       labels =
+                    c("Not certified","Broad certified")),
+         rank = factor(rank,levels = c(1:3),
+                       labels =
+                    c("Assistant","Associate","Full professor")))
+
+```
+
+Summarize all variables by gender
+```{r}
+ sum_data  <-  arsenal::tableby( gender ~ dept + clin + cert + 
+                                 prate + exper + rank + sal94	+
+                                 sal95, 
+                                data  = lawsuit,
+                                test  = FALSE, 
+                                total = FALSE,
+                                numeric.stats =
+                                  c("meansd","medianq1q3","range"))
+summ = summary(sum_data,text = TRUE)
+summ
+```
+
+Distributions
+```{r}
+gg_94 = 
+lawsuit %>% 
+ ggplot(aes(sal94,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "sal94")
+
+gg_95 = 
+lawsuit %>% 
+ ggplot(aes(sal95,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "sal95")
+
+gg_94 + gg_95
+```
+
+Possible transformation
+
+```{r}
+lawsuit_log = 
+lawsuit %>% 
+  mutate(log_sal94 = log(sal94),
+         log_sal95 = log(sal95)) %>% 
+  select(-sal94,-sal95)
+
+gg_94 = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal94,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log_sal94")
+
+gg_95 = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal95,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log_sal95")
+
+gg_94 + gg_95
+  
+```
+
+# Box-Cox
+
+```{r}
+fit94 = lm(sal94~ . - sal95 - id, data = lawsuit)
+par(mfrow = c(2,2))
+plot(fit94)
+```
+
+```{r}
+fit94 = lm(sal94~ . - sal95 - id, data = lawsuit)
+box94= boxcox(fit94)
+best_alpha_94 = box94$x[which(box94$y == max(box94$y))]
+
+fit94 = lm((sal94)^best_alpha_94 ~ . - sal95 - id, data = lawsuit)
+
+par(mfrow = c(2,2))
+plot(fit94)
+```
+
+# Interaction
+
+## Interaction for 94
+
+```{r}
+bind_rows(lm(log_sal94 ~ gender*dept, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*clin, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*cert, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*prate, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*exper, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*rank, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),])
+
+
+```
+
+## Interaction for 95
+
+```{r}
+bind_rows(lm(log_sal95 ~ gender*dept, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*clin, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*cert, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*prate, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*exper, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*rank, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),])
+
+
+```
+
+From the result above, we can see that "rank" is the interaction term for gender in 94 and 95. 
+
+# Confounders
+
+## Confounders for 94
+
+```{r}
+con = lm(log_sal94 ~ gender, data = lawsuit_log_94) %>% summary()
+con_1 = lm(log_sal94 ~ gender + dept, data = lawsuit_log_94) %>% summary()
+con_2 = lm(log_sal94 ~ gender + clin, data = lawsuit_log_94) %>% summary()
+con_3 = lm(log_sal94 ~ gender + cert, data = lawsuit_log_94) %>% summary()
+con_4 = lm(log_sal94 ~ gender + prate, data = lawsuit_log_94) %>% summary()
+con_5 = lm(log_sal94 ~ gender + exper, data = lawsuit_log_94) %>% summary()
+con_6 = lm(log_sal94 ~ gender + rank, data = lawsuit_log_94) %>% summary()
+
+con_tab_94 = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab_94 %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+
+```
+
+
+
+## Confounder 95
+
+```{r}
+con = lm(log_sal95 ~ gender, data = lawsuit_log_95) %>% summary()
+con_1 = lm(log_sal95 ~ gender + dept, data = lawsuit_log_95) %>% summary()
+con_2 = lm(log_sal95 ~ gender + clin, data = lawsuit_log_95) %>% summary()
+con_3 = lm(log_sal95 ~ gender + cert, data = lawsuit_log_95) %>% summary()
+con_4 = lm(log_sal95 ~ gender + prate, data = lawsuit_log_95) %>% summary()
+con_5 = lm(log_sal95 ~ gender + exper, data = lawsuit_log_95) %>% summary()
+con_6 = lm(log_sal95 ~ gender + rank, data = lawsuit_log_95) %>% summary()
+
+con_tab_95 = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab_95 %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+
+
+```
+
+# Global F-test
+
+## 94
+```{r}
+fit_94 = lm(log_sal94 ~ . + gender:rank, data = lawsuit_log_94)
+anova(fit_94)
+```
+
+## Partial Ftest
+
+```{r}
+model1_94 = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94)
+model2_94 = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank + prate, data = lawsuit_log_94)
+
+
+anova(model1_94, model2_94)
+
+
+```
+
+Since the P-value > 0.05, we can conclude that the model 2 is not better and we decide to exclude the "prate" for 94.  
+
+## 95
+```{r}
+fit_95 = lm(log_sal95 ~ . + gender:rank, data = lawsuit_log_95)
+anova(fit_95)
+```
+
+## Partial Ftest
+
+```{r}
+model1_95 = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_95)
+model2_95 = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank + prate, data = lawsuit_log_95)
+
+
+anova(model1_95, model2_95)
+
+
+```
+
+Since the P-value > 0.05, we can conclude that the model 2 is not better and we decide to exclude the "prate" for 95.  
+
+# Model Diagnostics
+
+## 94
+```{r}
+par(mfrow=c(2,2))
+plot(model1_94)
+```
+
+## 95
+
+```{r}
+par(mfrow=c(2,2))
+plot(model1_95)
+```
+
+## Functional forms for continuous variables
+
+# 94 vs 95
+
+```{r}
+fit1 = lm(log_sal94 ~ exper, data = lawsuit_log_94)
+fit2 = lm(log_sal95 ~ exper, data = lawsuit_log_95)
+par(mfrow=c(1,2))
+plot(fit1, which = 1)
+plot(fit2, which = 1)
+
+
+```
+
+
+We can see that for both 94 and 95, the plots do not suggest a curvilinear trend and thus for continuous variables "exper", the function form is linear. 
+
+## Multicollinearity
+
+```{r}
+vif_94 = vif(model1_94) %>% as.data.frame() %>% rownames_to_column() 
+names(vif_94) = c("variable", "vif")
+vif_94 %>% .[which(.$vif > 5),]
+
+```
+
+```{r}
+vif_95 = vif(model1_95) %>% as.data.frame() %>% rownames_to_column() 
+names(vif_95) = c("variable", "vif")
+vif_95 %>% .[which(.$vif > 5),]
+
+```
+
+# Outliers/Influential points
+
+## Outliers in Y
+
+### 94
+
+```{r}
+rs_94 = rstandard(model1_94)
+out_y_94 = rs_94[abs(rs_94)>2.5]
+out_y_94
+```
+
+### 95
+
+```{r}
+rs_95 = rstandard(model1_95)
+out_y_95 = rs_95[abs(rs_95)>2.5]
+out_y_95
+```
+
+## Outliers in X
+
+```{r}
+dffits(model1_94)[abs(dffits(model1_94))>1]
+cooks.distance(model1_94)[cooks.distance(model1_94)>(4/nrow(lawsuit_log_94))]
+```
+
+```{r}
+a = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94[-184,])
+par(mfrow = c(2,2))
+plot(a)
+```
+
+```{r}
+par(mfrow = c(2,2))
+plot(model1_94)
+```
+
