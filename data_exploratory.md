@@ -49,46 +49,449 @@ Summarize all variables by gender
                                 numeric.stats =
                                   c("meansd","medianq1q3","range"))
 summ = summary(sum_data,text = TRUE)
-summ
+summ %>% 
+  knitr::kable(format = "html")
 ```
 
-    ## 
-    ## 
-    ## |                   |           Female (N=106)           |            Male (N=155)             |
-    ## |:------------------|:----------------------------------:|:-----------------------------------:|
-    ## |dept               |                                    |                                     |
-    ## |-  Biochemistry    |             20 (18.9%)             |             30 (19.4%)              |
-    ## |-  Physiology      |             20 (18.9%)             |             20 (12.9%)              |
-    ## |-  Genetics        |             11 (10.4%)             |              10 (6.5%)              |
-    ## |-  Pediatrics      |             20 (18.9%)             |              10 (6.5%)              |
-    ## |-  Medicine        |             30 (28.3%)             |             50 (32.3%)              |
-    ## |-  Surgery         |              5 (4.7%)              |             35 (22.6%)              |
-    ## |clin               |                                    |                                     |
-    ## |-  Research        |             46 (43.4%)             |             55 (35.5%)              |
-    ## |-  Clinical        |             60 (56.6%)             |             100 (64.5%)             |
-    ## |cert               |                                    |                                     |
-    ## |-  Not certified   |             36 (34.0%)             |             37 (23.9%)              |
-    ## |-  Broad certified |             70 (66.0%)             |             118 (76.1%)             |
-    ## |prate              |                                    |                                     |
-    ## |-  Mean (SD)       |           5.350 (1.886)            |            4.646 (1.938)            |
-    ## |-  Median (Q1, Q3) |        5.250 (3.725, 7.275)        |        4.000 (3.100, 6.700)         |
-    ## |-  Range           |           2.400 - 8.700            |            1.300 - 8.600            |
-    ## |exper              |                                    |                                     |
-    ## |-  Mean (SD)       |           7.491 (4.166)            |           12.103 (6.704)            |
-    ## |-  Median (Q1, Q3) |       7.000 (5.000, 10.000)        |       10.000 (7.000, 15.000)        |
-    ## |-  Range           |           1.000 - 23.000           |           2.000 - 37.000            |
-    ## |rank               |                                    |                                     |
-    ## |-  Assistant       |             69 (65.1%)             |             43 (27.7%)              |
-    ## |-  Associate       |             21 (19.8%)             |             43 (27.7%)              |
-    ## |-  Full professor  |             16 (15.1%)             |             69 (44.5%)              |
-    ## |sal94              |                                    |                                     |
-    ## |-  Mean (SD)       |       118871.274 (56168.006)       |       177338.761 (85930.540)        |
-    ## |-  Median (Q1, Q3) | 108457.000 (75774.500, 143096.000) | 155006.000 (109687.000, 231501.500) |
-    ## |-  Range           |       34514.000 - 308081.000       |       52582.000 - 428876.000        |
-    ## |sal95              |                                    |                                     |
-    ## |-  Mean (SD)       |       130876.915 (62034.507)       |       194914.090 (94902.728)        |
-    ## |-  Median (Q1, Q3) | 119135.000 (82345.250, 154170.500) | 170967.000 (119952.500, 257163.000) |
-    ## |-  Range           |       38675.000 - 339664.000       |       58923.000 - 472589.000        |
+<table>
+
+<thead>
+
+<tr>
+
+<th style="text-align:left;">
+
+</th>
+
+<th style="text-align:left;">
+
+Female (N=106)
+
+</th>
+
+<th style="text-align:left;">
+
+Male (N=155)
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td style="text-align:left;">
+
+dept
+
+</td>
+
+<td style="text-align:left;">
+
+</td>
+
+<td style="text-align:left;">
+
+</td>
+
+</tr>
+
+<tr>
+
+<td style="text-align:left;">
+
+  - Biochemistry
+    </td>
+    <td style="text-align:left;">
+    20 (18.9%)
+    </td>
+    <td style="text-align:left;">
+    30 (19.4%)
+    </td>
+    </tr>
+    <tr>
+    <td style="text-align:left;">
+      - Physiology
+        </td>
+        <td style="text-align:left;">
+        20 (18.9%)
+        </td>
+        <td style="text-align:left;">
+        20 (12.9%)
+        </td>
+        </tr>
+        <tr>
+        <td style="text-align:left;">
+          - Genetics
+            </td>
+            <td style="text-align:left;">
+            11 (10.4%)
+            </td>
+            <td style="text-align:left;">
+            10 (6.5%)
+            </td>
+            </tr>
+            <tr>
+            <td style="text-align:left;">
+              - Pediatrics
+                </td>
+                <td style="text-align:left;">
+                20 (18.9%)
+                </td>
+                <td style="text-align:left;">
+                10 (6.5%)
+                </td>
+                </tr>
+                <tr>
+                <td style="text-align:left;">
+                  - Medicine
+                    </td>
+                    <td style="text-align:left;">
+                    30 (28.3%)
+                    </td>
+                    <td style="text-align:left;">
+                    50 (32.3%)
+                    </td>
+                    </tr>
+                    <tr>
+                    <td style="text-align:left;">
+                      - Surgery
+                        </td>
+                        <td style="text-align:left;">
+                        5 (4.7%)
+                        </td>
+                        <td style="text-align:left;">
+                        35 (22.6%)
+                        </td>
+                        </tr>
+                        <tr>
+                        <td style="text-align:left;">
+                        clin
+                        </td>
+                        <td style="text-align:left;">
+                        </td>
+                        <td style="text-align:left;">
+                        </td>
+                        </tr>
+                        <tr>
+                        <td style="text-align:left;">
+                          - Research
+                            </td>
+                            <td style="text-align:left;">
+                            46 (43.4%)
+                            </td>
+                            <td style="text-align:left;">
+                            55 (35.5%)
+                            </td>
+                            </tr>
+                            <tr>
+                            <td style="text-align:left;">
+                              - Clinical
+                                </td>
+                                <td style="text-align:left;">
+                                60 (56.6%)
+                                </td>
+                                <td style="text-align:left;">
+                                100 (64.5%)
+                                </td>
+                                </tr>
+                                <tr>
+                                <td style="text-align:left;">
+                                cert
+                                </td>
+                                <td style="text-align:left;">
+                                </td>
+                                <td style="text-align:left;">
+                                </td>
+                                </tr>
+                                <tr>
+                                <td style="text-align:left;">
+                                  - Not certified
+                                    </td>
+                                    <td style="text-align:left;">
+                                    36 (34.0%)
+                                    </td>
+                                    <td style="text-align:left;">
+                                    37 (23.9%)
+                                    </td>
+                                    </tr>
+                                    <tr>
+                                    <td style="text-align:left;">
+                                      - Broad certified
+                                        </td>
+                                        <td style="text-align:left;">
+                                        70 (66.0%)
+                                        </td>
+                                        <td style="text-align:left;">
+                                        118 (76.1%)
+                                        </td>
+                                        </tr>
+                                        <tr>
+                                        <td style="text-align:left;">
+                                        prate
+                                        </td>
+                                        <td style="text-align:left;">
+                                        </td>
+                                        <td style="text-align:left;">
+                                        </td>
+                                        </tr>
+                                        <tr>
+                                        <td style="text-align:left;">
+                                          - Mean
+                                            (SD)
+                                            </td>
+                                            <td style="text-align:left;">
+                                            5.350
+                                            (1.886)
+                                            </td>
+                                            <td style="text-align:left;">
+                                            4.646
+                                            (1.938)
+                                            </td>
+                                            </tr>
+                                            <tr>
+                                            <td style="text-align:left;">
+                                              - Median (Q1,
+                                                Q3)
+                                                </td>
+                                                <td style="text-align:left;">
+                                                5.250 (3.725,
+                                                7.275)
+                                                </td>
+                                                <td style="text-align:left;">
+                                                4.000 (3.100,
+                                                6.700)
+                                                </td>
+                                                </tr>
+                                                <tr>
+                                                <td style="text-align:left;">
+                                                  - Range
+                                                    </td>
+                                                    <td style="text-align:left;">
+                                                    2.400 -
+                                                    8.700
+                                                    </td>
+                                                    <td style="text-align:left;">
+                                                    1.300 -
+                                                    8.600
+                                                    </td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td style="text-align:left;">
+                                                    exper
+                                                    </td>
+                                                    <td style="text-align:left;">
+                                                    </td>
+                                                    <td style="text-align:left;">
+                                                    </td>
+                                                    </tr>
+                                                    <tr>
+                                                    <td style="text-align:left;">
+                                                      - Mean
+                                                        (SD)
+                                                        </td>
+                                                        <td style="text-align:left;">
+                                                        7.491
+                                                        (4.166)
+                                                        </td>
+                                                        <td style="text-align:left;">
+                                                        12.103
+                                                        (6.704)
+                                                        </td>
+                                                        </tr>
+                                                        <tr>
+                                                        <td style="text-align:left;">
+                                                          - Median (Q1,
+                                                            Q3)
+                                                            </td>
+                                                            <td style="text-align:left;">
+                                                            7.000
+                                                            (5.000,
+                                                            10.000)
+                                                            </td>
+                                                            <td style="text-align:left;">
+                                                            10.000
+                                                            (7.000,
+                                                            15.000)
+                                                            </td>
+                                                            </tr>
+                                                            <tr>
+                                                            <td style="text-align:left;">
+                                                              - Range
+                                                                </td>
+                                                                <td style="text-align:left;">
+                                                                1.000 -
+                                                                23.000
+                                                                </td>
+                                                                <td style="text-align:left;">
+                                                                2.000 -
+                                                                37.000
+                                                                </td>
+                                                                </tr>
+                                                                <tr>
+                                                                <td style="text-align:left;">
+                                                                rank
+                                                                </td>
+                                                                <td style="text-align:left;">
+                                                                </td>
+                                                                <td style="text-align:left;">
+                                                                </td>
+                                                                </tr>
+                                                                <tr>
+                                                                <td style="text-align:left;">
+                                                                  - Assistant
+                                                                    </td>
+                                                                    <td style="text-align:left;">
+                                                                    69
+                                                                    (65.1%)
+                                                                    </td>
+                                                                    <td style="text-align:left;">
+                                                                    43
+                                                                    (27.7%)
+                                                                    </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                    <td style="text-align:left;">
+                                                                      - Associate
+                                                                        </td>
+                                                                        <td style="text-align:left;">
+                                                                        21
+                                                                        (19.8%)
+                                                                        </td>
+                                                                        <td style="text-align:left;">
+                                                                        43
+                                                                        (27.7%)
+                                                                        </td>
+                                                                        </tr>
+                                                                        <tr>
+                                                                        <td style="text-align:left;">
+                                                                          - Full
+                                                                            professor
+                                                                            </td>
+                                                                            <td style="text-align:left;">
+                                                                            16
+                                                                            (15.1%)
+                                                                            </td>
+                                                                            <td style="text-align:left;">
+                                                                            69
+                                                                            (44.5%)
+                                                                            </td>
+                                                                            </tr>
+                                                                            <tr>
+                                                                            <td style="text-align:left;">
+                                                                            sal94
+                                                                            </td>
+                                                                            <td style="text-align:left;">
+                                                                            </td>
+                                                                            <td style="text-align:left;">
+                                                                            </td>
+                                                                            </tr>
+                                                                            <tr>
+                                                                            <td style="text-align:left;">
+                                                                              - Mean
+                                                                                (SD)
+                                                                                </td>
+                                                                                <td style="text-align:left;">
+                                                                                118871.274
+                                                                                (56168.006)
+                                                                                </td>
+                                                                                <td style="text-align:left;">
+                                                                                177338.761
+                                                                                (85930.540)
+                                                                                </td>
+                                                                                </tr>
+                                                                                <tr>
+                                                                                <td style="text-align:left;">
+                                                                                  - Median
+                                                                                    (Q1,
+                                                                                    Q3)
+                                                                                    </td>
+                                                                                    <td style="text-align:left;">
+                                                                                    108457.000
+                                                                                    (75774.500,
+                                                                                    143096.000)
+                                                                                    </td>
+                                                                                    <td style="text-align:left;">
+                                                                                    155006.000
+                                                                                    (109687.000,
+                                                                                    231501.500)
+                                                                                    </td>
+                                                                                    </tr>
+                                                                                    <tr>
+                                                                                    <td style="text-align:left;">
+                                                                                      - Range
+                                                                                        </td>
+                                                                                        <td style="text-align:left;">
+                                                                                        34514.000
+                                                                                        -
+                                                                                        308081.000
+                                                                                        </td>
+                                                                                        <td style="text-align:left;">
+                                                                                        52582.000
+                                                                                        -
+                                                                                        428876.000
+                                                                                        </td>
+                                                                                        </tr>
+                                                                                        <tr>
+                                                                                        <td style="text-align:left;">
+                                                                                        sal95
+                                                                                        </td>
+                                                                                        <td style="text-align:left;">
+                                                                                        </td>
+                                                                                        <td style="text-align:left;">
+                                                                                        </td>
+                                                                                        </tr>
+                                                                                        <tr>
+                                                                                        <td style="text-align:left;">
+                                                                                          - Mean
+                                                                                            (SD)
+                                                                                            </td>
+                                                                                            <td style="text-align:left;">
+                                                                                            130876.915
+                                                                                            (62034.507)
+                                                                                            </td>
+                                                                                            <td style="text-align:left;">
+                                                                                            194914.090
+                                                                                            (94902.728)
+                                                                                            </td>
+                                                                                            </tr>
+                                                                                            <tr>
+                                                                                            <td style="text-align:left;">
+                                                                                              - Median
+                                                                                                (Q1,
+                                                                                                Q3)
+                                                                                                </td>
+                                                                                                <td style="text-align:left;">
+                                                                                                119135.000
+                                                                                                (82345.250,
+                                                                                                154170.500)
+                                                                                                </td>
+                                                                                                <td style="text-align:left;">
+                                                                                                170967.000
+                                                                                                (119952.500,
+                                                                                                257163.000)
+                                                                                                </td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                <td style="text-align:left;">
+                                                                                                  - Range
+                                                                                                    </td>
+                                                                                                    <td style="text-align:left;">
+                                                                                                    38675.000
+                                                                                                    -
+                                                                                                    339664.000
+                                                                                                    </td>
+                                                                                                    <td style="text-align:left;">
+                                                                                                    58923.000
+                                                                                                    -
+                                                                                                    472589.000
+                                                                                                    </td>
+                                                                                                    </tr>
+                                                                                                    </tbody>
+                                                                                                    </table>
 
 Distributions
 
