@@ -47,7 +47,8 @@ Summarize all variables by gender
                                 numeric.stats =
                                   c("meansd","medianq1q3","range"))
 summ = summary(sum_data,text = TRUE)
-summ
+summ %>% 
+  knitr::kable(format = "html")
 ```
 
 Distributions
