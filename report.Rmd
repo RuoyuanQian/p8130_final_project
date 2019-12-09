@@ -2,7 +2,9 @@
 title: "report"
 author: "Xinyu Shen xs2384"
 date: "2019/12/7"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -16,7 +18,7 @@ library(MASS)
 library(HH)
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 lawsuit = 
 read_csv("data/Lawsuit.csv") %>% 
    janitor::clean_names() %>% 
@@ -54,7 +56,7 @@ summ
 ```
 
 Distributions
-```{r}
+```{r, message=FALSE, warning=FALSE}
 gg_94 = 
 lawsuit %>% 
  ggplot(aes(sal94,..density..))+
@@ -72,14 +74,14 @@ lawsuit %>%
 gg_94 + gg_95
 ```
 
+The distribution for outcome is right skew. So we may want to try the log transformation. 
+
 Possible transformation
 
 ```{r}
-lawsuit_log = 
-lawsuit %>% 
-  mutate(log_sal94 = log(sal94),
-         log_sal95 = log(sal95)) %>% 
-  select(-sal94,-sal95)
+lawsuit_log = lawsuit %>% mutate(
+        log_sal94 = log(sal94),
+        log_sal95 = log(sal95)) %>% dplyr::select(-sal94,-sal95)
 
 gg_94 = 
 lawsuit_log %>% 
@@ -99,30 +101,21 @@ gg_94 + gg_95
   
 ```
 
-# Box-Cox
+After using log transformation, the outcome almost follow a normal distribution. 
 
-```{r}
-fit94 = lm(sal94~ . - sal95 - id, data = lawsuit)
-par(mfrow = c(2,2))
-plot(fit94)
-```
-
-```{r}
-fit94 = lm(sal94~ . - sal95 - id, data = lawsuit)
-box94= boxcox(fit94)
-best_alpha_94 = box94$x[which(box94$y == max(box94$y))]
-
-fit94 = lm((sal94)^best_alpha_94 ~ . - sal95 - id, data = lawsuit)
-
-par(mfrow = c(2,2))
-plot(fit94)
-```
 
 # Interaction
 
 ## Interaction for 94
 
 ```{r}
+lawsuit_log_94 =
+lawsuit_log %>% 
+  dplyr::select(-log_sal95,-id)
+
+lawsuit_log_95 = lawsuit_log %>% 
+  dplyr::select(-log_sal94,-id)
+
 bind_rows(lm(log_sal94 ~ gender*dept, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
 lm(log_sal94 ~ gender*clin, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
 lm(log_sal94 ~ gender*cert, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
@@ -146,7 +139,7 @@ lm(log_sal95 ~ gender*rank, data = lawsuit_log_95) %>% summary() %>% .$coefficie
 
 ```
 
-From the result above, we can see that "rank" is the interaction term for gender in 94 and 95. 
+From the result above, we can see that "rank" is the interaction term for gender in 1994 and 1995. 
 
 # Confounders
 
@@ -195,6 +188,8 @@ con_tab_95 %>% mutate(
 
 ```
 
+From above result, we can see that all the variables except rank is the confounder for gender. 
+
 # Global F-test
 
 ## 94
@@ -202,6 +197,8 @@ con_tab_95 %>% mutate(
 fit_94 = lm(log_sal94 ~ . + gender:rank, data = lawsuit_log_94)
 anova(fit_94)
 ```
+
+From the global F-test, we can see that prate is not significant. In order to be parsimony, I may delete it from our model. 
 
 ## Partial Ftest
 
@@ -252,6 +249,32 @@ par(mfrow=c(2,2))
 plot(model1_95)
 ```
 
+Generally, the assumption hold for both 94 and 95. The scale-location plot shows that the data has constant variance except for some outliers, which means heteroscedasticity assumption holds. Also, the qq plot shows that the data are followed the normal line, which means the normality assumption holds. 
+
+## Multicollinearity
+
+### 94
+
+```{r}
+vif_94 = vif(model1_94) %>% as.data.frame() %>% rownames_to_column() 
+names(vif_94) = c("variable", "vif")
+vif_94 %>% .[which(.$vif > 5),]
+
+```
+
+### 95
+
+```{r}
+vif_95 = vif(model1_95) %>% as.data.frame() %>% rownames_to_column() 
+names(vif_95) = c("variable", "vif")
+vif_95 %>% .[which(.$vif > 5),]
+
+```
+
+
+The VIF suggest that rank and the interaction term for rank and gender may have collinearity. However, the interaction term will always has collinearity with main effect itself. We would not drop the interaction term and will keep it in the model for both 94 and 95. 
+
+
 ## Functional forms for continuous variables
 
 # 94 vs 95
@@ -267,23 +290,13 @@ plot(fit2, which = 1)
 ```
 
 
-We can see that for both 94 and 95, the plots do not suggest a curvilinear trend and thus for continuous variables "exper", the function form is linear. 
-
-## Multicollinearity
-
 ```{r}
-vif_94 = vif(model1_94) %>% as.data.frame() %>% rownames_to_column() 
-names(vif_94) = c("variable", "vif")
-vif_94 %>% .[which(.$vif > 5),]
-
+lawsuit_log_94 %>% ggplot(aes(x=exper, y = log_sal94)) + geom_point() +
+  lawsuit_log_95 %>% ggplot(aes(x=exper, y = log_sal95)) + geom_point() 
 ```
 
-```{r}
-vif_95 = vif(model1_95) %>% as.data.frame() %>% rownames_to_column() 
-names(vif_95) = c("variable", "vif")
-vif_95 %>% .[which(.$vif > 5),]
+We can see that for both 94 and 95, the residual vs fitted plots does not suggest a curvilinear trend and the scatter plot shows a potenrial increasing linear relationship between exper and outcome. Thus, for continuous variables "exper", the function form may be linear. 
 
-```
 
 # Outliers/Influential points
 
@@ -297,6 +310,9 @@ out_y_94 = rs_94[abs(rs_94)>2.5]
 out_y_94
 ```
 
+For year 94, the data 184 and 208 are outliers in X. 
+
+
 ### 95
 
 ```{r}
@@ -305,21 +321,96 @@ out_y_95 = rs_95[abs(rs_95)>2.5]
 out_y_95
 ```
 
+For year 95, the data 122, 184 and 208 are outliers in X. 
+
 ## Outliers in X
 
+### 94
+
 ```{r}
-dffits(model1_94)[abs(dffits(model1_94))>1]
-cooks.distance(model1_94)[cooks.distance(model1_94)>(4/nrow(lawsuit_log_94))]
+hat_94 = lm.influence(model1_94)$hat
+hat_94[hat_94>0.2]
+```
+
+There is no outlier in Y for 94. 
+
+### 94
+
+```{r}
+hat_95 = lm.influence(model1_95)$hat
+hat_95[hat_95>0.2]
+```
+
+There is no outlier in Y for 95. 
+
+
+## Influential point
+
+### 94
+
+```{r}
+dffits_94 = dffits(model1_94)
+abs(dffits_94[c(184,208)])>(sqrt(5/nrow(lawsuit_log_94))*2)
+```
+
+The dffits suggest that data 184 and 208 are both influential points for 94. 
+
+```{r}
+cooks.distance(model1_94)[c(184,208)] > (4/nrow(lawsuit_log_94))
+
+```
+
+The cook's distance also suggest that data 184 and 208 are both influential points for 94. 
+
+
+### 95
+
+```{r}
+dffits_95 = dffits(model1_95)
+abs(dffits_95[c(122,184,208)]) > (sqrt(5/nrow(lawsuit_log_95))*2)
+```
+
+The dffits suggest that data 122, 184 and 208 are both influential points for 95. 
+
+```{r}
+cooks.distance(model1_95)[c(122,184,208)] > (4/nrow(lawsuit_log_95))
+
+```
+
+The cook's distance also suggest that data 122, 184 and 208 are both influential points for 95. 
+
+## Removing influential points
+
+### 94
+
+```{r}
+fit.model_94 = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94)
+par(mfrow = c(2,2))
+plot(fit.model_94)
 ```
 
 ```{r}
-a = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94[-184,])
+fit.model_94_nooutlier = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94[c(-184, -208),])
 par(mfrow = c(2,2))
-plot(a)
+plot(fit.model_94_nooutlier)
+```
+
+After removing the influential points from 94, we can see that the assumption holds well. The residual vs fitted plot shows that data are more evenly distributed on two side of zero line. The qq plot does not have outlier far away from the line, and there are no outliers close to the cook's distance. 
+
+
+### 95
+
+```{r}
+fit.model_95 = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_95)
+par(mfrow = c(2,2))
+plot(fit.model_95)
 ```
 
 ```{r}
+fit.model_95_nooutlier = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_95[c(-122, -184, -208),])
 par(mfrow = c(2,2))
-plot(model1_94)
+plot(fit.model_95_nooutlier)
 ```
+
+After removing the influential points from 95, we can see that the assumption holds well. The residual vs fitted plot shows that data are more evenly distributed on two side of zero line. The qq plot does not have outlier far away from the line, and there are no outliers close to the cook's distance. 
 

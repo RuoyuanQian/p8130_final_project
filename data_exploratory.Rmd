@@ -10,7 +10,6 @@ library(dplyr)
 library(arsenal)
 library(ggplot2)
 library(patchwork)
-library(HH)
 ```
 
 ```{r}
@@ -76,7 +75,7 @@ lawsuit_log =
 lawsuit %>% 
   mutate(log_sal94 = log(sal94),
          log_sal95 = log(sal95)) %>% 
-  dplyr::select(-sal94,-sal95)
+  select(-sal94,-sal95)
 
 gg_94 = 
 lawsuit_log %>% 
@@ -96,14 +95,232 @@ gg_94 + gg_95
   
 ```
 
-# Confounders for 94
-
+# 画分层图
+```{r}
+#lawsuit_log_94 %>% 
+#  ggplot(aes(x = ))
+#
+#heart_fill %>% 
+#ggplot(aes(x = e_rvisits, y = log_totalcost,color = comp_bin)) + 
+#  geom_point() + 
+#  geom_smooth(method = 'lm', formula = y ~ x)+
+#    labs(x = "ER visits",
+#         y = "log(total cost+1)")
+```
+# 94 salary
 ```{r}
 lawsuit_log_94 =
 lawsuit_log %>% 
-    dplyr::select(-log_sal95,-id)
+  select(-log_sal95,-id)
 
 
+mul.fit <- lm(log_sal94 ~ .,lawsuit_log_94)
+summary(mul.fit)
+
+# let gender be a stratified factor
+# mul.fit_all_gender <- lm(log_sal94 ~ . + 
+
+lawsuit_log_95 = lawsuit_log %>% 
+  select(-log_sal94,-id)
+
+mul.fit <- lm(log_sal94 ~ . + gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_94)
+summary(mul.fit_all_gender)
+
+
+# only gender*rank is significant
+mul.fit_fixed_gender <- lm(log_sal94 ~ . + gender*rank, lawsuit_log_94)
+summary(mul.fit_fixed_gender)
+
+# remove non-significant variable: prate
+# test model with and without prate
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+
+# ANOVA
+# P>0.05
+# choose small model wothout prate
+anova(mul.fit_no_prate,mul.fit_fixed_gender)
+
+# Final stratified model
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+```
+
+stepwise 
+```{r}
+step(mul.fit_no_prate,direction='backward')
+
+mul.fit_fixed_gender <- lm(log_sal94 ~ . + gender*rank, lawsuit_log_94)
+summary(mul.fit_fixed_gender)
+
+step(mul.fit_fixed_gender,direction='backward')
+
+
+# whole medel stepwise
+model_all = lm(log_sal94 ~ . + 
+              gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_94)
+step(model_all,direction='backward')
+
+```
+
+
+# Foward
+
+```{r}
+library(broom)
+
+foward_elimation = function(x){
+  min_value = tidy(lm(x[[length(x)]] ~ x[[1]], data = x))$p.value[2]
+  min_index = 1
+  fit_value = 2
+  for(i in seq(2,length(x)-1)){
+    if(tidy(lm(x[[length(x)]] ~ x[[i]], data = x))$p.value[2]>min_value){
+      min_value = min_value
+      min_index = min_index
+    }else{
+      min_value = tidy(lm(x[[length(x)]] ~ x[[i]], data = x))$p.value[2]
+      min_index = i
+    }
+  }
+  x = x[,-min_index]
+  foward = lm(x[[length(x)]]~x[[min_index]], data = x)
+  
+  for(k in seq(1,length(x)-2)){
+    if(length(x)<=2){break}
+    for(j in seq(1,length(x)-1)){
+      if(is.na(tidy(update(foward, .~. + x[[j]]))$p.value[k+2])){break}
+      if(tidy(update(foward, .~. + x[[j]]))$p.value[k+2]<fit_value & tidy(update(foward, .~. + x[[j]]))$p.value[k+2]<0.05){
+        fit_value = tidy(update(foward, .~. + x[[j]]))$p.value[k+2]
+        fit_index = j
+        }else{
+        fit_value = fit_value
+        fit_index = fit_index
+        }
+      
+    }
+    
+    foward = update(foward, .~. + x[[fit_index]])
+    x = x[,-fit_index]
+  }
+  
+  foward
+}
+
+foward_elimation(lawsuit_log_94)
+
+
+
+
+
+```
+
+```{r}
+library(broom)
+fo = function(x){
+  min_value = 2
+  min_index = 1
+  for(i in 1:length(x)-1){
+    if(tidy(lm(x[[length(x)]] ~ x[[i]], data = x))$p.value[2] < min_value){
+      min_value = tidy(lm(x[[length(x)]] ~ x[[i]], data = x))$p.value[2]
+      min_index = i
+    }else{
+      min_value = min_value
+      min_index = min_index
+    }
+  }
+  x = x[,-min_index]
+  foward = lm(x[[length(x)]]~x[[min_index]], data = x)
+  foward
+}
+
+
+fo(x = lawsuit_log_94)
+
+c = function(x){
+  min_value = tidy(lm(x[[length(x)]] ~ x[[1]], data = x))$p.value[2]
+  min_index = 1
+  fit_value = 2
+  for(i in 2:length(x)-1){
+    if(tidy(lm(x[[length(x)]] ~ x[[i]], data = x))$p.value[2]>min_value){
+      min_value = min_value
+      min_index = min_index
+    }else{
+      min_value = tidy(lm(x[[length(x)]] ~ x[[i]], data = x))$p.value[2]
+      min_index = i
+    }
+  }
+  x = x[,-min_index]
+  foward = lm(x[[length(x)]]~x[[min_index]], data = x)
+  foward
+}
+
+c(lawsuit_log_94)
+
+for(i in seq(1,ncol(lawsuit_log_94)-1)){
+  print(tidy(lm(x[[length(lawsuit_log_94)]] ~ lawsuit_log_94[[i]], data = x))$p.value[2] )
+}
+
+seq(1,length(lawsuit_log_94)-1)
+
+```
+
+
+
+```{r}
+model1 = lm(formula = log_sal94 ~ dept + clin + cert + exper + 
+    rank + gender:rank + gender, data = lawsuit_log_94)
+
+model2 = lm(formula = log_sal94 ~ dept + clin + cert + exper + 
+    rank , data = lawsuit_log_94)
+
+anova(model2, model1)
+
+```
+
+# 95 salary
+```{r}
+lawsuit_log_95 =
+lawsuit_log %>% 
+  select(-log_sal94,-id)
+
+mul.fit <- lm(log_sal95 ~ .,lawsuit_log_95)
+summary(mul.fit)
+
+# let gender be a stratified factor
+mul.fit_all_gender <- lm(log_sal95 ~ . + 
+              gender*rank + gender*clin + gender*cert +
+              gender*prate + gender*rank + gender*dept
+              ,lawsuit_log_95)
+summary(mul.fit_all_gender)
+
+
+# only gender*rank is significant
+mul.fit_fixed_gender <- lm(log_sal95 ~ . + gender*rank, lawsuit_log_95)
+summary(mul.fit_fixed_gender)
+
+# remove non-significant variable: prate
+# test model with and without prate
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+
+# ANOVA
+# P>0.05
+# choose small model wothout prate
+anova(mul.fit_no_prate,mul.fit_fixed_gender)
+
+# Final stratified model
+mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
+summary(mul.fit_no_prate)
+```
+
+
+# Confounders for 94
+
+```{r}
 con = lm(log_sal94 ~ gender, data = lawsuit_log_94) %>% summary()
 con_1 = lm(log_sal94 ~ gender + dept, data = lawsuit_log_94) %>% summary()
 con_2 = lm(log_sal94 ~ gender + clin, data = lawsuit_log_94) %>% summary()
@@ -121,205 +338,13 @@ con_tab_94 %>% mutate(
 
 con_tab_94
 (0.2251-0.2024)/0.2251
-
-# Except for rank, all covariates are confounders
 ```
 
-
-# 94 salary
-```{r}
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 83204c663cde4b2516accf9ba3e3921f5f38b4ae
-mul.fit <- lm(log_sal94 ~ .,lawsuit_log_94)
-summary(mul.fit)
-
-# let gender be a stratified factor
-<<<<<<< HEAD
-mul.fit_all_gender <- lm(log_sal94 ~ . + 
-
-lawsuit_log_95 =
-lawsuit_log %>% 
-  select(-log_sal94,-id)
-
-mul.fit <- lm(log_sal94 ~ . + 
-
-=======
-
-mul.fit_all_gender <- lm(log_sal94 ~ . + 
->>>>>>> 83204c663cde4b2516accf9ba3e3921f5f38b4ae
-              gender*rank + gender*clin + gender*cert +
-              gender*prate + gender*rank + gender*dept
-              ,lawsuit_log_94)
-summary(mul.fit_all_gender)
-
-
-# only gender*rank is significant
-mul.fit_fixed_gender <- lm(log_sal94 ~ . + gender*rank, lawsuit_log_94)
-summary(mul.fit_fixed_gender)
-
-# remove non-significant variable: prate
-# test model with and without prate
-mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
-summary(mul.fit_no_prate)
-
-# ANONA test model with all interaction terms and model with only gender*rank 
-anova(mul.fit_fixed_gender,mul.fit_all_gender)
-# Choose small model
-
-# ANOVA
-# P>0.05
-# choose small model wothout prate
-anova(mul.fit_no_prate,mul.fit_fixed_gender)
-
-# Final stratified model
-# should we remove prate????????
-mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
-summary(mul.fit_no_prate)
-```
-
-stepwise 
-```{r}
-#step(mul.fit_no_prate,direction='backward')
-#
-#mul.fit_fixed_gender <- lm(log_sal94 ~ . + gender*rank, lawsuit_log_94)
-#summary(mul.fit_fixed_gender)
-#
-#step(mul.fit_fixed_gender,direction='backward')
-#
-#
-## whole medel stepwise
-#model_all = lm(log_sal94 ~ . + 
-#              gender*rank + gender*clin + gender*cert +
-#              gender*prate + gender*rank + gender*dept
-#              ,lawsuit_log_94)
-#step(model_all,direction='backward')
-
-```
-
-
-```{r}
-# ANOVA with and without prate
-model1 = lm(formula = log_sal94 ~ dept + clin + cert + exper + 
-    rank + gender:rank + gender, data = lawsuit_log_94)
-
-model2 = lm(formula = log_sal94 ~ dept + clin + cert + exper + 
-    rank , data = lawsuit_log_94)
-
-anova(model2, model1)
-
-```
-
-# Stratified model by rank
-```{r}
-lawsuit_log_94_prof = 
-lawsuit_log_94 %>% 
-  filter(rank == "Full professor")
-
-lawsuit_log_94_asso = 
-lawsuit_log_94 %>% 
-  filter(rank == "Associate")
-
-lawsuit_log_94_assi = 
-lawsuit_log_94 %>% 
-  filter(rank == "Assistant")
-
-model_prof = lm(formula = log_sal94 ~ dept + clin + cert + exper + gender, data = lawsuit_log_94_prof)
-
-model_asso = lm(formula = log_sal94 ~ dept + clin + cert + exper + gender, data = lawsuit_log_94_asso)
-
-model_assi = lm(formula = log_sal94 ~ dept + clin + cert + exper + gender, data = lawsuit_log_94_assi)
-
-summary(model_prof)
-summary(model_asso)
-summary(model_assi)
-```
-
-<<<<<<< HEAD
-
-# Foward
-
-```{r}
-library(broom)
-
-foward_elimation = function(x, y){
-  min_value = tidy(lm(y ~ x[[1]], data = x))$p.value[2]
-  min_index = 1
-  for(i in 2:length(x)-1){
-    if(tidy(lm(y ~ x[[i]], data = x))$p.value[2]>min_value){
-      min_value = min_value
-      min_index = min_index
-    }else{
-      min_value = tidy(lm(y ~ x[[i]], data = x))$p.value[2]
-      min_index = i
-    }
-    
-    
-    
-  }
-  
-  
-  
-}
-
-
-
-tidy(lm(y ~ x[[i]], data = x))$p.value[2] > tidy(lm(y ~ x[[i-1]], data = x))$p.value[2]
-
-tidy(lm(log_sal94 ~ lawsuit_log_94[[1]], data = lawsuit_log_94))
-
-
-names(lawsuit_log_94)[1]
-
-=======
-# model diagnosis
-# 94
-```{r}
-# prate has multicollinearity
-vif(model_prof)
-vif(model_asso)
-vif(model_assi)
->>>>>>> 83204c663cde4b2516accf9ba3e3921f5f38b4ae
-
-```
-
-heteroscedasticity, normality
-```{r}
-# outlier: 4th,51th,65th
-par(mfrow=c(2,2))
-plot(model_prof)
-
-# outlier: 47th, 15th
-par(mfrow=c(2,2))
-plot(model_asso)
-
-# influencial point: 68th
-par(mfrow=c(2,2))
-plot(model_assi)
-```
-
-remove 68th in model_assi
-```{r}
-
-# remove 68th, gender is not significant
-model_assi = lm(formula = log_sal94 ~ dept + clin + cert + exper + gender, data = lawsuit_log_94_assi[-68,])
-summary(model_assi)
-
-par(mfrow=c(2,2))
-plot(model_assi)
-
-```
 
 
 # Confounder 95
 
 ```{r}
-lawsuit_log_95 =
-lawsuit_log %>% 
-    dplyr::select(-log_sal94,-id)
-
 con = lm(log_sal95 ~ gender, data = lawsuit_log_95) %>% summary()
 con_1 = lm(log_sal95 ~ gender + dept, data = lawsuit_log_95) %>% summary()
 con_2 = lm(log_sal95 ~ gender + clin, data = lawsuit_log_95) %>% summary()
@@ -340,106 +365,17 @@ con_tab_95 %>% mutate(
 ```
 
 
-# 95 salary
-```{r}
-
-mul.fit <- lm(log_sal95 ~ .,lawsuit_log_95)
-summary(mul.fit)
-
-# let gender be a stratified factor
-mul.fit_all_gender <- lm(log_sal95 ~ . + 
-              gender*rank + gender*clin + gender*cert +
-              gender*prate + gender*rank + gender*dept
-              ,lawsuit_log_95)
-summary(mul.fit_all_gender)
-
-
-# only gender*rank is significant
-mul.fit_fixed_gender <- lm(log_sal95 ~ . + gender*rank, lawsuit_log_95)
-summary(mul.fit_fixed_gender)
-
-# ANONA test model with all interaction terms and model with only gender*rank 
-anova(mul.fit_fixed_gender,mul.fit_all_gender)
-# Choose small model
-
-
-# remove non-significant variable: prate
-# test model with and without prate
-mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
-summary(mul.fit_no_prate)
-
-# ANOVA
-# P>0.05
-# choose small model wothout prate
-anova(mul.fit_no_prate,mul.fit_fixed_gender)
-
-# Final stratified model
-mul.fit_no_prate <- update(mul.fit_fixed_gender, . ~ . -prate)
-summary(mul.fit_no_prate)
-```
-
-<<<<<<< HEAD
-
-# Confounders for 94
-
-=======
-# Stratified model by rank
->>>>>>> 83204c663cde4b2516accf9ba3e3921f5f38b4ae
-```{r}
-lawsuit_log_95_prof = 
-lawsuit_log_95 %>% 
-  filter(rank == "Full professor")
-
-lawsuit_log_95_asso = 
-lawsuit_log_95 %>% 
-  filter(rank == "Associate")
-
-lawsuit_log_95_assi = 
-lawsuit_log_95 %>% 
-  filter(rank == "Assistant")
-
-model_prof = lm(formula = log_sal95 ~ dept + clin + cert + exper + gender, data = lawsuit_log_95_prof)
-
-model_asso = lm(formula = log_sal95 ~ dept + clin + cert + exper + gender, data = lawsuit_log_95_asso)
-
-model_assi = lm(formula = log_sal95 ~ dept + clin + cert + exper + gender, data = lawsuit_log_95_assi)
-
-summary(model_prof)
-summary(model_asso)
-summary(model_assi)
-```
-
-# model diagnosis
-# 95
-```{r}
-# prate has multicollinearity
-vif(model_prof)
-vif(model_asso)
-vif(model_assi)
-
-```
-
-heteroscedasticity, normality
-```{r}
-# outlier: 51th,65th,4th
-# influencial: 68th
-par(mfrow=c(2,2))
-plot(model_prof)
-
-# outlier: 47th, 15th
-par(mfrow=c(2,2))
-plot(model_asso)
-
-# outlier: 22th, 40th
-# influencial point: 68th
-par(mfrow=c(2,2))
-plot(model_assi)
-```
-
-
 
 # Fowared elimination
 
+```{r}
+library(broom)
+
+
+
+
+
+```
 
 
 
