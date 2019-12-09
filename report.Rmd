@@ -1,0 +1,416 @@
+---
+title: "report"
+author: "Xinyu Shen xs2384"
+date: "2019/12/7"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) ## Data Manipulaion
+library(dplyr)
+library(arsenal)
+library(ggplot2)
+library(patchwork)
+library(MASS)
+library(HH)
+```
+
+```{r, message=FALSE, warning=FALSE}
+lawsuit = 
+read_csv("data/Lawsuit.csv") %>% 
+   janitor::clean_names() %>% 
+  mutate(dept = factor(dept,levels = c(1:6),
+                       labels =
+                    c("Biochemistry","Physiology","Genetics",
+                      "Pediatrics","Medicine","Surgery")),
+         gender = factor(gender,levels = c(0:1),
+                       labels =
+                    c("Female","Male")),
+         clin = factor(clin,levels = c(0:1),
+                       labels =
+                    c("Research","Clinical")),
+         cert = factor(cert,levels = c(0:1),
+                       labels =
+                    c("Not certified","Broad certified")),
+         rank = factor(rank,levels = c(1:3),
+                       labels =
+                    c("Assistant","Associate","Full professor")))
+
+```
+
+Summarize all variables by gender
+```{r}
+ sum_data  <-  arsenal::tableby( gender ~ dept + clin + cert + 
+                                 prate + exper + rank + sal94	+
+                                 sal95, 
+                                data  = lawsuit,
+                                test  = FALSE, 
+                                total = FALSE,
+                                numeric.stats =
+                                  c("meansd","medianq1q3","range"))
+summ = summary(sum_data,text = TRUE)
+summ
+```
+
+Distributions
+```{r, message=FALSE, warning=FALSE}
+gg_94 = 
+lawsuit %>% 
+ ggplot(aes(sal94,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "sal94")
+
+gg_95 = 
+lawsuit %>% 
+ ggplot(aes(sal95,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "sal95")
+
+gg_94 + gg_95
+```
+
+The distribution for outcome is right skew. So we may want to try the log transformation. 
+
+Possible transformation
+
+```{r}
+lawsuit_log = lawsuit %>% mutate(
+        log_sal94 = log(sal94),
+        log_sal95 = log(sal95)) %>% dplyr::select(-sal94,-sal95)
+
+gg_94 = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal94,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log_sal94")
+
+gg_95 = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal95,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log_sal95")
+
+gg_94 + gg_95
+  
+```
+
+After using log transformation, the outcome almost follow a normal distribution. 
+
+
+# Interaction
+
+## Interaction for 94
+
+```{r}
+lawsuit_log_94 =
+lawsuit_log %>% 
+  dplyr::select(-log_sal95,-id)
+
+lawsuit_log_95 = lawsuit_log %>% 
+  dplyr::select(-log_sal94,-id)
+
+bind_rows(lm(log_sal94 ~ gender*dept, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*clin, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*cert, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*prate, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*exper, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal94 ~ gender*rank, data = lawsuit_log_94) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),])
+
+
+```
+
+## Interaction for 95
+
+```{r}
+bind_rows(lm(log_sal95 ~ gender*dept, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*clin, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*cert, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*prate, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*exper, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),],
+lm(log_sal95 ~ gender*rank, data = lawsuit_log_95) %>% summary() %>% .$coefficients %>% as.data.frame() %>% rownames_to_column() %>% .[which(grepl(":", .$rowname)),] %>% .[which(.[[5]]<0.05),])
+
+
+```
+
+From the result above, we can see that "rank" is the interaction term for gender in 1994 and 1995. 
+
+# Confounders
+
+## Confounders for 94
+
+```{r}
+con = lm(log_sal94 ~ gender, data = lawsuit_log_94) %>% summary()
+con_1 = lm(log_sal94 ~ gender + dept, data = lawsuit_log_94) %>% summary()
+con_2 = lm(log_sal94 ~ gender + clin, data = lawsuit_log_94) %>% summary()
+con_3 = lm(log_sal94 ~ gender + cert, data = lawsuit_log_94) %>% summary()
+con_4 = lm(log_sal94 ~ gender + prate, data = lawsuit_log_94) %>% summary()
+con_5 = lm(log_sal94 ~ gender + exper, data = lawsuit_log_94) %>% summary()
+con_6 = lm(log_sal94 ~ gender + rank, data = lawsuit_log_94) %>% summary()
+
+con_tab_94 = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab_94 %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+
+```
+
+
+
+## Confounder 95
+
+```{r}
+con = lm(log_sal95 ~ gender, data = lawsuit_log_95) %>% summary()
+con_1 = lm(log_sal95 ~ gender + dept, data = lawsuit_log_95) %>% summary()
+con_2 = lm(log_sal95 ~ gender + clin, data = lawsuit_log_95) %>% summary()
+con_3 = lm(log_sal95 ~ gender + cert, data = lawsuit_log_95) %>% summary()
+con_4 = lm(log_sal95 ~ gender + prate, data = lawsuit_log_95) %>% summary()
+con_5 = lm(log_sal95 ~ gender + exper, data = lawsuit_log_95) %>% summary()
+con_6 = lm(log_sal95 ~ gender + rank, data = lawsuit_log_95) %>% summary()
+
+con_tab_95 = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab_95 %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+
+
+```
+
+From above result, we can see that all the variables except rank is the confounder for gender. 
+
+# Global F-test
+
+## 94
+```{r}
+fit_94 = lm(log_sal94 ~ . + gender:rank, data = lawsuit_log_94)
+anova(fit_94)
+```
+
+From the global F-test, we can see that prate is not significant. In order to be parsimony, I may delete it from our model. 
+
+## Partial Ftest
+
+```{r}
+model1_94 = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94)
+model2_94 = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank + prate, data = lawsuit_log_94)
+
+
+anova(model1_94, model2_94)
+
+
+```
+
+Since the P-value > 0.05, we can conclude that the model 2 is not better and we decide to exclude the "prate" for 94.  
+
+## 95
+```{r}
+fit_95 = lm(log_sal95 ~ . + gender:rank, data = lawsuit_log_95)
+anova(fit_95)
+```
+
+## Partial Ftest
+
+```{r}
+model1_95 = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_95)
+model2_95 = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank + prate, data = lawsuit_log_95)
+
+
+anova(model1_95, model2_95)
+
+
+```
+
+Since the P-value > 0.05, we can conclude that the model 2 is not better and we decide to exclude the "prate" for 95.  
+
+# Model Diagnostics
+
+## 94
+```{r}
+par(mfrow=c(2,2))
+plot(model1_94)
+```
+
+## 95
+
+```{r}
+par(mfrow=c(2,2))
+plot(model1_95)
+```
+
+Generally, the assumption hold for both 94 and 95. The scale-location plot shows that the data has constant variance except for some outliers, which means heteroscedasticity assumption holds. Also, the qq plot shows that the data are followed the normal line, which means the normality assumption holds. 
+
+## Multicollinearity
+
+### 94
+
+```{r}
+vif_94 = vif(model1_94) %>% as.data.frame() %>% rownames_to_column() 
+names(vif_94) = c("variable", "vif")
+vif_94 %>% .[which(.$vif > 5),]
+
+```
+
+### 95
+
+```{r}
+vif_95 = vif(model1_95) %>% as.data.frame() %>% rownames_to_column() 
+names(vif_95) = c("variable", "vif")
+vif_95 %>% .[which(.$vif > 5),]
+
+```
+
+
+The VIF suggest that rank and the interaction term for rank and gender may have collinearity. However, the interaction term will always has collinearity with main effect itself. We would not drop the interaction term and will keep it in the model for both 94 and 95. 
+
+
+## Functional forms for continuous variables
+
+# 94 vs 95
+
+```{r}
+fit1 = lm(log_sal94 ~ exper, data = lawsuit_log_94)
+fit2 = lm(log_sal95 ~ exper, data = lawsuit_log_95)
+par(mfrow=c(1,2))
+plot(fit1, which = 1)
+plot(fit2, which = 1)
+
+
+```
+
+
+```{r}
+lawsuit_log_94 %>% ggplot(aes(x=exper, y = log_sal94)) + geom_point() +
+  lawsuit_log_95 %>% ggplot(aes(x=exper, y = log_sal95)) + geom_point() 
+```
+
+We can see that for both 94 and 95, the residual vs fitted plots does not suggest a curvilinear trend and the scatter plot shows a potenrial increasing linear relationship between exper and outcome. Thus, for continuous variables "exper", the function form may be linear. 
+
+
+# Outliers/Influential points
+
+## Outliers in Y
+
+### 94
+
+```{r}
+rs_94 = rstandard(model1_94)
+out_y_94 = rs_94[abs(rs_94)>2.5]
+out_y_94
+```
+
+For year 94, the data 184 and 208 are outliers in X. 
+
+
+### 95
+
+```{r}
+rs_95 = rstandard(model1_95)
+out_y_95 = rs_95[abs(rs_95)>2.5]
+out_y_95
+```
+
+For year 95, the data 122, 184 and 208 are outliers in X. 
+
+## Outliers in X
+
+### 94
+
+```{r}
+hat_94 = lm.influence(model1_94)$hat
+hat_94[hat_94>0.2]
+```
+
+There is no outlier in Y for 94. 
+
+### 94
+
+```{r}
+hat_95 = lm.influence(model1_95)$hat
+hat_95[hat_95>0.2]
+```
+
+There is no outlier in Y for 95. 
+
+
+## Influential point
+
+### 94
+
+```{r}
+dffits_94 = dffits(model1_94)
+abs(dffits_94[c(184,208)])>(sqrt(5/nrow(lawsuit_log_94))*2)
+```
+
+The dffits suggest that data 184 and 208 are both influential points for 94. 
+
+```{r}
+cooks.distance(model1_94)[c(184,208)] > (4/nrow(lawsuit_log_94))
+
+```
+
+The cook's distance also suggest that data 184 and 208 are both influential points for 94. 
+
+
+### 95
+
+```{r}
+dffits_95 = dffits(model1_95)
+abs(dffits_95[c(122,184,208)]) > (sqrt(5/nrow(lawsuit_log_95))*2)
+```
+
+The dffits suggest that data 122, 184 and 208 are both influential points for 95. 
+
+```{r}
+cooks.distance(model1_95)[c(122,184,208)] > (4/nrow(lawsuit_log_95))
+
+```
+
+The cook's distance also suggest that data 122, 184 and 208 are both influential points for 95. 
+
+## Removing influential points
+
+### 94
+
+```{r}
+fit.model_94 = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94)
+par(mfrow = c(2,2))
+plot(fit.model_94)
+```
+
+```{r}
+fit.model_94_nooutlier = lm(log_sal94~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_94[c(-184, -208),])
+par(mfrow = c(2,2))
+plot(fit.model_94_nooutlier)
+```
+
+After removing the influential points from 94, we can see that the assumption holds well. The residual vs fitted plot shows that data are more evenly distributed on two side of zero line. The qq plot does not have outlier far away from the line, and there are no outliers close to the cook's distance. 
+
+
+### 95
+
+```{r}
+fit.model_95 = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_95)
+par(mfrow = c(2,2))
+plot(fit.model_95)
+```
+
+```{r}
+fit.model_95_nooutlier = lm(log_sal95~ dept + gender + clin + cert + exper + rank + gender:rank, data = lawsuit_log_95[c(-122, -184, -208),])
+par(mfrow = c(2,2))
+plot(fit.model_95_nooutlier)
+```
+
+After removing the influential points from 95, we can see that the assumption holds well. The residual vs fitted plot shows that data are more evenly distributed on two side of zero line. The qq plot does not have outlier far away from the line, and there are no outliers close to the cook's distance. 
+
