@@ -1,0 +1,454 @@
+---
+title: "P8103_final project"
+output:
+  html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) ## Data Manipulaion
+library(dplyr)
+library(arsenal)
+library(ggplot2)
+library(patchwork)
+library(MASS)
+library(HH)
+library(knitr)
+library(xtable)
+#install.packages("kableExtra")
+library(kableExtra)
+#install.packages(c("sjPlot","sjmisc","sjlabelled"))
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+lawsuit = 
+read_csv("data/Lawsuit.csv") %>% 
+   janitor::clean_names() %>% 
+  mutate(dept = factor(dept,levels = c(1:6),
+                       labels =
+                    c("Biochemistry","Physiology","Genetics",
+                      "Pediatrics","Medicine","Surgery")),
+         gender = factor(gender,levels = c(0:1),
+                       labels =
+                    c("Female","Male")),
+         clin = factor(clin,levels = c(0:1),
+                       labels =
+                    c("Research","Clinical")),
+         cert = factor(cert,levels = c(0:1),
+                       labels =
+                    c("Not certified","Broad certified")),
+         rank = factor(rank,levels = c(1:3),
+                       labels =
+                    c("Assistant","Associate","Full professor")),
+         sal_avg = (sal94 + sal95)/2) %>% dplyr::select(-sal94, -sal95)
+
+```
+
+Summarize all variables by gender
+```{r}
+ sum_data  <-  arsenal::tableby( gender ~ dept + clin + cert + 
+                                 prate + exper + rank + sal_avg, 
+                                data  = lawsuit,
+                                test  = FALSE, 
+                                total = FALSE,
+                                numeric.stats =
+                                  c("meansd","medianq1q3","range"))
+summ = summary(sum_data,text = TRUE)
+summ%>% 
+  knitr::kable(caption = "Table 1  Descriptive table for all variables of interest",
+               format = "html") 
+```
+
+Distributions
+```{r, message=FALSE, warning=FALSE}
+b = 
+lawsuit %>% 
+ ggplot(aes(sal_avg,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'Density',size = 1)+
+    labs(x = "average salary")
+
+```
+
+The distribution for outcome is right skew. So we may want to try the log transformation. 
+
+Possible transformation
+
+```{r}
+lawsuit_log = lawsuit %>% mutate(
+        log_sal = log(sal_avg)) %>% dplyr::select(-id, -sal_avg)
+a = 
+lawsuit_log %>% 
+ ggplot(aes(log_sal,..density..))+
+ geom_histogram()+
+ geom_line(stat = 'density',size = 1)+
+    labs(x = "log(average salary)")
+b+a
+  
+```
+
+After using log transformation, the outcome almost follow a normal distribution. 
+
+
+# Confounders
+
+```{r}
+con = lm(log_sal ~ gender, data = lawsuit_log) %>% summary()
+con_1 = lm(log_sal ~ gender + dept, data = lawsuit_log) %>% summary()
+con_2 = lm(log_sal ~ gender + clin, data = lawsuit_log) %>% summary()
+con_3 = lm(log_sal ~ gender + cert, data = lawsuit_log) %>% summary()
+con_4 = lm(log_sal ~ gender + prate, data = lawsuit_log) %>% summary()
+con_5 = lm(log_sal ~ gender + exper, data = lawsuit_log) %>% summary()
+con_6 = lm(log_sal ~ gender + rank, data = lawsuit_log) %>% summary()
+
+con_tab = tibble("variables" = c("gender", "gender + dept", "gender + clin", "gender + cert", "gender + prate", "gender + exper", "gender + rank"), "coef" = c(con$coefficients[2],con_1$coefficients[2],con_2$coefficients[2],con_3$coefficients[2],con_4$coefficients[2],con_5$coefficients[2],con_6$coefficients[2]))
+
+con_tab %>% mutate(
+  diff = abs((coef[1]-coef)/coef[1]),
+  confounder = ifelse(diff>=0.1, "Y", "N")
+)
+
+
+```
+
+
+
+From above result, we can see that the difference for all the variables except rank are over 10%. Also, the rank has difference 9.3%, which could also be considered potential confounder. Thus, we would add all the variables to the model at first glance.
+
+```{r}
+model = lm(log_sal ~ ., data = lawsuit_log)
+```
+
+
+
+
+According to relevant articles, "rank" and "exper" are the interaction terms for gender. 
+
+According to the scatter plot, we decide to split the exper into two categories, with the cutoff 10. 
+
+```{r}
+lawsuit_w_exp = lawsuit_log %>% mutate(
+  exper_ind = as.factor(ifelse(exper <= 10, "<=10", ">10"))
+)
+
+lawsuit_log = lawsuit_log %>% mutate(
+  exper_ind = as.factor(ifelse(exper <= 10, "<=10", ">10"))
+) %>% dplyr::select(-exper)
+```
+
+
+```{r}
+
+lawsuit_w_exp %>% ggplot(aes(x = exper, y = log_sal,color = exper_ind)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  geom_line(aes(x = 10.5),color = "blue")+
+    labs(y = "log(average salary)",
+         x = "experience")
+```
+
+So we stratified the model based on rank and exper.
+
+## Rank
+
+```{r}
+
+rank.asso = lm(log_sal ~ ., data = lawsuit_w_exp %>% filter(rank == "Associate") %>% dplyr::select(-rank, - exper_ind) )
+rank.full = lm(log_sal ~ ., data = lawsuit_w_exp %>% filter(rank == "Full professor") %>% dplyr::select(-rank, - exper_ind) )
+rank.assi = lm(log_sal ~ ., data = lawsuit_w_exp %>% filter(rank == "Assistant") %>% dplyr::select(-rank, - exper_ind) )
+
+summary(rank.asso)
+summary(rank.assi)
+summary(rank.full)
+
+
+
+```
+
+
+
+According to the result above, we can see that the variable prate is not significant for every level of rank. Thus, we decide to exclude prate from the stratified model of rank. 
+
+
+## Exper
+
+```{r}
+exper.tenplus = lm(log_sal ~ ., data = lawsuit_log %>% filter(exper_ind == "<=10") %>% dplyr::select( - exper_ind) )
+exper.tenminus = lm(log_sal ~ ., data = lawsuit_log %>% filter(exper_ind == ">10") %>% dplyr::select( - exper_ind) )
+
+
+summary(exper.tenplus)
+summary(exper.tenminus)
+
+```
+
+According to the result above, we can see that the variable prate is not significant for every level of exper. Thus, we decide to exclude prate from the stratified model of exper. 
+
+```{r}
+rank.asso = lm(log_sal ~ . -prate, data = lawsuit_w_exp %>% filter(rank == "Associate") %>% dplyr::select(-rank, - exper_ind) )
+rank.full = lm(log_sal ~ .-prate, data = lawsuit_w_exp %>% filter(rank == "Full professor") %>% dplyr::select(-rank, - exper_ind) )
+rank.assi = lm(log_sal ~ .-prate, data = lawsuit_w_exp %>% filter(rank == "Assistant") %>% dplyr::select(-rank, - exper_ind) )
+exper.tenplus = lm(log_sal ~ .-prate, data = lawsuit_log %>% filter(exper_ind == "<=10") %>% dplyr::select( - exper_ind) )
+exper.tenminus = lm(log_sal ~ .-prate, data = lawsuit_log %>% filter(exper_ind == ">10") %>% dplyr::select( - exper_ind) )
+
+summary(rank.asso)
+summary(rank.assi)
+summary(rank.full)
+summary(exper.tenplus)
+summary(exper.tenminus)
+```
+
+In Assistant and <=10 level, the gender is significant predictor.
+
+# Model Diagnostics
+
+## Assumption Check
+
+```{r}
+par(mfrow=c(2,3))
+plot(rank.assi, which = 1)
+title("Assistant",line=-1)
+plot(rank.asso, which = 1)
+title("Associate",line=-1)
+plot(rank.full, which = 1)
+title("Full professor",line=-1)
+plot(exper.tenplus, which = 1)
+title("experience>10",line=-1)
+plot(exper.tenminus, which = 1)
+title("experience<=10",line=-1)
+```
+
+
+```{r}
+par(mfrow=c(2,3))
+plot(rank.assi, which = 2, xlab = "Assistant")
+plot(rank.asso, which = 2, xlab = "Association")
+plot(rank.full, which = 2, xlab = "Full professor")
+plot(exper.tenplus, which = 2, xlab = "More than 10 years")
+plot(exper.tenminus, which = 2, xlab = "Less than 10 years")
+```
+
+
+Generally, the assumption hold for both 94 and 95. The scale-location plot shows that the data has constant variance except for some outliers, which means heteroscedasticity assumption holds. Also, the qq plot shows that the data are followed the normal line, which means the normality assumption holds. 
+
+## Multicollinearity
+
+
+```{r}
+vif.full = vif(rank.full) %>% as.data.frame() %>% rownames_to_column() 
+names(vif.full) = c("variable", "vif")
+vif.full %>% .[which(.$vif > 5),]
+
+vif.asso = vif(rank.asso) %>% as.data.frame() %>% rownames_to_column() 
+names(vif.asso) = c("variable", "vif")
+vif.asso %>% .[which(.$vif > 5),]
+
+vif.assi = vif(rank.assi) %>% as.data.frame() %>% rownames_to_column() 
+names(vif.assi) = c("variable", "vif")
+vif.assi %>% .[which(.$vif > 5),]
+
+vif.tenminus = vif(exper.tenminus) %>% as.data.frame() %>% rownames_to_column() 
+names(vif.tenminus) = c("variable", "vif")
+vif.tenminus %>% .[which(.$vif > 5),]
+
+vif.tenplus = vif(exper.tenplus) %>% as.data.frame() %>% rownames_to_column() 
+names(vif.tenplus) = c("variable", "vif")
+vif.tenplus %>% .[which(.$vif > 5),]
+
+```
+
+
+The VIF suggest that rank and the interaction term for rank and gender may have collinearity. However, the interaction term will always has collinearity with main effect itself. We would not drop the interaction term and will keep it in the model for both 94 and 95. 
+
+
+## Functional forms for continuous variables
+
+```{r}
+
+lawsuit_w_exp %>% filter(rank == "Associate") %>% dplyr::select(-rank, - exper_ind) %>% ggplot(aes(x=exper, y = log_sal)) + geom_point() + labs(title = "Associate",y = "log(average salary)") + theme(plot.title = element_text(hjust = 0.5))+
+lawsuit_w_exp %>% filter(rank == "Assistant") %>% dplyr::select(-rank, - exper_ind) %>% ggplot(aes(x=exper, y = log_sal)) + geom_point()  + labs(title = "Assistant",y = "log(average salary)") + theme(plot.title = element_text(hjust = 0.5))+
+lawsuit_w_exp %>% filter(rank == "Full professor") %>% dplyr::select(-rank, - exper_ind) %>% ggplot(aes(x=exper, y = log_sal)) + geom_point() + plot_layout(ncol = 2, nrow = 2) + labs(title = "Full Professor",y = "log(average salary)" ) + theme(plot.title = element_text(hjust = 0.5))
+```
+
+We can see that for, the residual vs fitted plots does not suggest a curvilinear trend and the scatter plot shows a potenrial increasing linear relationship between exper and outcome. Thus, for continuous variables "exper", the function form may be linear. 
+
+
+# Outliers/Influential points
+
+## Outliers in Y
+
+
+```{r}
+rs_full = rstandard(rank.full)
+out_y_full = rs_full[abs(rs_full)>2.5]
+
+
+rs_asso = rstandard(rank.asso)
+out_y_asso = rs_asso[abs(rs_asso)>2.5]
+
+
+rs_assi = rstandard(rank.assi)
+out_y_assi = rs_assi[abs(rs_assi)>2.5]
+
+
+rs_tenplus = rstandard(exper.tenplus)
+out_y_tenplus = rs_tenplus[abs(rs_tenplus)>2.5]
+
+
+rs_tenminus = rstandard(exper.tenminus)
+out_y_tenminus = rs_tenminus[abs(rs_tenminus)>2.5]
+
+
+out_y_full
+out_y_asso
+out_y_assi
+out_y_tenplus
+out_y_tenminus
+```
+The data 0 for Full
+The data 15 and 47 are outliers in Y for associate professor. 
+The data 68 for assitant. 
+The data 109 for ten plus.
+the data 30 for ten minus. 
+
+
+## Outliers in X
+
+```{r}
+hat_full = lm.influence(rank.full)$hat
+hat_asso = lm.influence(rank.asso)$hat
+hat_assi = lm.influence(rank.assi)$hat
+hat_tenplus = lm.influence(exper.tenplus)$hat
+hat_tenminus = lm.influence(exper.tenminus)$hat
+
+hat_full[hat_full>0.2]
+hat_asso[hat_asso>0.2]
+hat_assi[hat_assi>0.2]
+hat_tenplus[hat_tenplus>0.2]
+hat_tenminus[hat_tenminus>0.2]
+```
+
+The data 40, 47, 48, 49, 50, 72 for full
+The data 8,14,16,24,25,26,27,28,29,34,38,55,58,63 for asso
+The data 9 for assi
+The data 0 for ten plus
+The data 44, 45, 49, 50, 51, 52, 53, 54, 55 for tenminus
+
+
+
+
+## Influential point
+
+### Dffits
+
+```{r}
+dffits_full = dffits(rank.full)
+n_full = nrow(lawsuit_log %>% filter(rank == "Full professor"))
+
+dffits_asso = dffits(rank.asso)
+n_asso = nrow(lawsuit_log %>% filter(rank == "Associate"))
+
+dffits_assi = dffits(rank.assi)
+n_assi = nrow(lawsuit_log %>% filter(rank == "Assistant"))
+
+dffits_tenplus = dffits(exper.tenplus)
+n_tenplus = nrow(lawsuit_log %>% filter(rank == ">10"))
+
+dffits_tenminus = dffits(exper.tenminus)
+n_tenminus = nrow(lawsuit_log %>% filter(rank == "<=10"))
+
+
+
+a = abs(dffits_full[c(40, 47, 48, 49, 50, 72)]) > sqrt(7/n_full)*2
+a[a==TRUE]
+a= abs(dffits_asso[c(8,14,16,24,25,26,27,28,29,34,38,55,58,63,15,47)]) > sqrt(7/n_asso)*2
+a[a==TRUE]
+a = abs(dffits_assi[c(9,68)]) > sqrt(7/n_assi)*2
+a[a==TRUE]
+a = abs(dffits_tenplus[c(109)]) > sqrt(7/n_tenplus)*2
+a[a==TRUE]
+a = abs(dffits_tenminus[c(44, 45, 49, 50, 51, 52, 53, 54, 55, 39)]) > sqrt(7/n_tenminus)*2
+a[a==TRUE]
+```
+
+For full, 47 is influential. 
+For asso, 8, 16, 24, 29, 38,15,47.
+For assi, 68
+
+```{r}
+a = cooks.distance(rank.full)[c(40, 47, 48, 49, 50, 72)] >  (4/n_full)
+a[a==T]
+
+
+a = cooks.distance(rank.asso)[c(8,14,16,24,25,26,27,28,29,34,38,55,58,63,15,47)] > (4/n_asso)
+a[a==T]
+
+a = cooks.distance(rank.assi)[c(9,68)] > (4/n_assi)
+a[a==T]
+
+a = cooks.distance(exper.tenplus)[c(109)] > (4/n_tenplus)
+a[a==T]
+
+a = cooks.distance(exper.tenminus)[c(44, 45, 49, 50, 51, 52, 53, 54, 55, 39)] > (4/n_tenminus)
+a[a==T]
+
+```
+
+The cook's distance:
+
+For full, 47 is influential. 
+For asso, 8, 16, 24, 29, 38,15
+For assi, 68
+
+But we want to include 47. 
+
+
+## Removing influential points
+
+
+```{r}
+rank.asso_no = lm(log_sal ~ . -prate, data = lawsuit_w_exp %>% filter(rank == "Associate") %>% dplyr::select(-rank, - exper_ind) %>% .[c(-8, -16, -24, -29, -38,-15, -47),] )
+rank.full_no = lm(log_sal ~ .-prate, data = lawsuit_w_exp %>% filter(rank == "Full professor") %>% dplyr::select(-rank, - exper_ind) %>% .[c(-47),] )
+rank.assi_no = lm(log_sal ~ .-prate, data = lawsuit_w_exp %>% filter(rank == "Assistant") %>% dplyr::select(-rank, - exper_ind) %>% .[-68,] )
+
+```
+
+```{r}
+par(mfrow=c(2,3))
+plot(rank.assi_no, which = 1)
+title("Assistant",line=-1)
+plot(rank.asso_no, which = 1)
+title("Associate",line=-1)
+plot(rank.full_no, which = 1)
+title("Full professor",line=-1)
+plot(exper.tenplus, which = 1)
+title("experience>10",line=-1)
+plot(exper.tenminus, which = 1)
+title("experience<=10",line=-1)
+```
+
+```{r}
+par(mfrow=c(2,3))
+plot(rank.assi_no, which = 2, xlab = "Assistant")
+plot(rank.asso_no, which = 2, xlab = "Association")
+plot(rank.full_no, which = 2, xlab = "Full professor")
+plot(exper.tenplus, which = 2, xlab = "More than 10 years")
+plot(exper.tenminus, which = 2, xlab = "Less than 10 years")
+```
+
+
+After removing the influential points from 94, we can see that the assumption holds well. The residual vs fitted plot shows that data are more evenly distributed on two side of zero line. The qq plot does not have outlier far away from the line, and there are no outliers close to the cook's distance. 
+
+
+
+```{r}
+
+tab_model(rank.asso_no,rank.assi_no,rank.full_no)
+tab_model(exper.tenplus,exper.tenminus)
+
+```
+
